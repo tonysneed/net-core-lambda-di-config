@@ -1,26 +1,130 @@
-# AWS Lambda Empty Function Project
+# AWS Lambda Function with Dependency Injection and Configuration
 
-This starter project consists of:
-* Function.cs - class file containing a class with a single function handler method
-* aws-lambda-tools-defaults.json - default argument settings for use with Visual Studio and command line deployment tools for AWS
+Demonstrates how to add .NET Core dependency injection and configuration services to an AWS Lambda Function project for .NET Core 2.1.
 
-You may also have a test project depending on the options selected.
+## Summary
 
-The generated function handler is a simple method accepting a string argument that returns the uppercase equivalent of the input string. Replace the body of this method, and parameters, to suit your needs. 
+The idea behind this approach is to leverage the built-in configuration system of .NET Core, which can accept mulitple inputs that can override one another. This allows for use of an **appsettings.json** file with settings entries that can be overriden by environment variables applied when the Lambda Function is deployed.  This allows for values that will be available when debugging the function locally, as well as values that can be set as part of a CICD pipeline.
 
-## Here are some steps to follow from Visual Studio:
+## Prerequisites
 
-To deploy your function to AWS Lambda, right click the project in Solution Explorer and select *Publish to AWS Lambda*.
+- Visual Studio 2017 or greater.
+- AWS Toolkit for Visual Studio 2017.
+- .NET Core 2.1 SDK
 
-To view your deployed function open its Function View window by double-clicking the function name shown beneath the AWS Lambda node in the AWS Explorer tree.
+## Setup Steps
 
-To perform testing against your deployed function use the Test Invoke tab in the opened Function View window.
+1. Open VS 2017 and create a new project.
+    - Select **AWS Lambda Project**
 
-To configure event sources for your deployed function, for example to have your function invoked when an object is created in an Amazon S3 bucket, use the Event Sources tab in the opened Function View window.
+1. Add **version 2.1** following NuGet Packages
+    - Microsoft.Extensions.Configuration
+    - Microsoft.Extensions.Configuration.Abstractions
+    - Microsoft.Extensions.Configuration.EnvironmentVariables
+    - Microsoft.Extensions.Configuration.FileExtensions
+    - Microsoft.Extensions.Configuration.Json
+    - Microsoft.Extensions.DependencyInjection
+    - Microsoft.Extensions.DependencyInjection.Abstractions
 
-To update the runtime configuration of your deployed function use the Configuration tab in the opened Function View window.
+1. Add an appsettings.json file to the project.
+    - Add the following content
 
-To view execution logs of invocations of your function use the Logs tab in the opened Function View window.
+    ```json
+    {
+        "env1": "val1",
+        "env2": "val2",
+        "env3": "val3"
+    }
+    ```
+
+1. Open the **aws-lambda-tools-defaults.json** file and add the following:
+
+    ```json
+    "environment-variables" : "\"env1\"=\"val1\";\"env2\"=\"val2\"",
+    ```
+
+1. Add a `IConfigurationService` interface to the project.
+
+    ```csharp
+    public interface IConfigurationService
+    {
+        IConfiguration GetConfiguration();
+    }
+    ```
+
+1. Add a `ConfigurationService` class to the project.
+
+    ```csharp
+    public class ConfigurationService : IConfigurationService
+    {
+        public IConfiguration GetConfiguration()
+        {
+            return new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .AddEnvironmentVariables()
+                .Build();
+        }
+    }
+    ```
+
+1. Add a `ConfigureServices` method to the `Function` class in order to register services with the DI system
+
+    ```chsarp
+    private void ConfigureServices(IServiceCollection serviceCollection)
+    {
+        // Register Config Service with DI system
+        serviceCollection.AddTransient<IConfigurationService, ConfigurationService>();
+    }
+    ```
+
+1. Add a property and two constructors to the `Function` class.
+
+    ```csharp
+    // Configuration Service
+    public IConfigurationService ConfigService { get; }
+
+    public Function()
+    {
+        // Set up Dependency Injection
+        var serviceCollection = new ServiceCollection();
+        ConfigureServices(serviceCollection);
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        // Get Configuration Service from DI system
+        ConfigService = serviceProvider.GetService<IConfigurationService>();
+    }
+
+    // Use this ctor from unit tests that can mock IConfigurationService
+    public Function(IConfigurationService configService)
+    {
+        ConfigService = configService;
+    }
+    ```
+
+1. Flesh out the `FunctionHandler` method to use the `ConfigService`.
+    - Use the input parameter for the key used to retrieve a setting.
+
+    ```chsarp
+    public string FunctionHandler(string input, ILambdaContext context)
+    {
+        // Get config setting using input as a key
+        return ConfigService.GetConfiguration()[input] ?? "None";
+    }
+    ```
+
+## Local Debugging
+
+1. Press F5 to launch the Mock Lambda Test Tool and start debugging.
+
+1. Enter `"env1"` into Function Input, and click Execute Function.
+    - A value of `"val1"` should be returned base on the appsettings.json file.
+
+## Deployment
+
+1. Right-click on the project in the Solutions Explorer and select Publish to AWS Lambda.
+
+2. Under Configuration you can change the values for the environment variables, and these will override the values from the appsettings.json file published with the Lambda Function.
 
 ## Here are some steps to follow to get started from the command line:
 
