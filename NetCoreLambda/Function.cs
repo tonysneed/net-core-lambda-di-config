@@ -42,7 +42,8 @@ namespace NetCoreLambda
 
         private void ConfigureServices(IServiceCollection serviceCollection)
         {
-            // Register Config Service with DI system
+            // Register services with DI system
+            serviceCollection.AddTransient<IEnvironmentService, EnvironmentService>();
             serviceCollection.AddTransient<IConfigurationService, ConfigurationService>();
         }
     }

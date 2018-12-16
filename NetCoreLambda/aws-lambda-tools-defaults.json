@@ -14,7 +14,7 @@
     "function-memory-size" : 256,
     "function-timeout"     : 30,
     "function-handler"     : "NetCoreLambda::NetCoreLambda.Function::FunctionHandler",
-    "environment-variables" : "\"env1\"=\"val1\";\"env2\"=\"val2\"",
+    "environment-variables" : "\"ASPNETCORE_ENVIRONMENT\"=\"Staging\";\"env1\"=\"val1\";\"env2\"=\"val2\"",
     "function-name"         : "NetCoreLambda",
     "function-role"         : "arn:aws:iam::229130418844:role/aws-netcore-demo-DefaultFunctionRole-167PAFDM1ZB7O",
     "tracing-mode"          : "PassThrough"

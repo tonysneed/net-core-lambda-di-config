@@ -19,15 +19,13 @@ The idea behind this approach is to leverage the built-in configuration system o
 
 1. Add **version 2.1** following NuGet Packages
     - Microsoft.Extensions.Configuration
-    - Microsoft.Extensions.Configuration.Abstractions
     - Microsoft.Extensions.Configuration.EnvironmentVariables
     - Microsoft.Extensions.Configuration.FileExtensions
     - Microsoft.Extensions.Configuration.Json
     - Microsoft.Extensions.DependencyInjection
-    - Microsoft.Extensions.DependencyInjection.Abstractions
 
-1. Add an appsettings.json file to the project.
-    - Add the following content
+1. Add an **appsettings.json** file to the project.
+    - Add the following content:
 
     ```json
     {
@@ -37,10 +35,72 @@ The idea behind this approach is to leverage the built-in configuration system o
     }
     ```
 
+1. Add an **appsettings.Development.json** file to the project.
+    - Add the following content:
+
+    ```json
+    {
+        "env1": "dev-val1",
+        "env2": "dev-val2",
+        "env3": "dev-val3"
+    }
+    ```
+
+1. Select both JSON files, open the Propeties window of Visual Studio, then set the `BuildAction` property to **Content** and the `Copy to Output Directory` property to **Copy always**. 
+
 1. Open the **aws-lambda-tools-defaults.json** file and add the following:
 
     ```json
-    "environment-variables" : "\"env1\"=\"val1\";\"env2\"=\"val2\"",
+    "environment-variables" : "\"ASPNETCORE_ENVIRONMENT\"=\"Development\";\"env1\"=\"val1\";\"env2\"=\"val2\"",
+    ```
+
+1. Add an `environmentVariables` property to the **launchSettings.json** file.
+
+    ```json
+    "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+    }
+    ```
+
+1. Add a `Constants` class to the project.
+
+    ```csharp
+    public static class Constants
+    {
+        public static class EnvironmentVariables
+        {
+            public const string AspnetCoreEnvironment = "ASPNETCORE_ENVIRONMENT";
+        }
+
+        public static class Environments
+        {
+            public const string Production = "Production";
+        }
+    }
+    ```
+
+1. Add a `IEnvironmentService` interface to the project.
+
+    ```csharp
+    public interface IEnvironmentService
+    {
+        string EnvironmentName { get; set; }
+    }
+    ```
+
+1. Add a `EnvironmentService` class to the project.
+
+    ```csharp
+    public class EnvironmentService : IEnvironmentService
+    {
+        public EnvironmentService()
+        {
+            EnvironmentName = Environment.GetEnvironmentVariable(EnvironmentVariables.AspnetCoreEnvironment)
+                ?? Environments.Production;
+        }
+
+        public string EnvironmentName { get; set; }
+    }
     ```
 
 1. Add a `IConfigurationService` interface to the project.
@@ -68,12 +128,13 @@ The idea behind this approach is to leverage the built-in configuration system o
     }
     ```
 
-1. Add a `ConfigureServices` method to the `Function` class in order to register services with the DI system
+1. Add a `ConfigureServices` method to the `Function` class in order to register services with the DI system.
 
-    ```chsarp
+    ```csharp
     private void ConfigureServices(IServiceCollection serviceCollection)
     {
-        // Register Config Service with DI system
+        // Register services with DI system
+        serviceCollection.AddTransient<IEnvironmentService, EnvironmentService>();
         serviceCollection.AddTransient<IConfigurationService, ConfigurationService>();
     }
     ```
@@ -122,7 +183,7 @@ The idea behind this approach is to leverage the built-in configuration system o
 
 ## Unit Testing
 
-1. Add the NuGet package for Moq to the Test project.
+1. Add the NuGet package for **Moq** to the Test project.
 
 1. Add a reference to the **NetCoreLambda** project.
 
