@@ -15,7 +15,7 @@ The idea behind this approach is to leverage the built-in configuration system o
 ## Setup Steps
 
 1. Open VS 2017 and create a new project.
-    - Select **AWS Lambda Project**
+    - Select **AWS Lambda Project with Tests**.
 
 1. Add **version 2.1** following NuGet Packages
     - Microsoft.Extensions.Configuration
@@ -105,7 +105,7 @@ The idea behind this approach is to leverage the built-in configuration system o
 1. Flesh out the `FunctionHandler` method to use the `ConfigService`.
     - Use the input parameter for the key used to retrieve a setting.
 
-    ```chsarp
+    ```csharp
     public string FunctionHandler(string input, ILambdaContext context)
     {
         // Get config setting using input as a key
@@ -119,6 +119,35 @@ The idea behind this approach is to leverage the built-in configuration system o
 
 1. Enter `"env1"` into Function Input, and click Execute Function.
     - A value of `"val1"` should be returned base on the appsettings.json file.
+
+## Unit Testing
+
+1. Add the NuGet package for Moq to the Test project.
+
+1. Add a reference to the **NetCoreLambda** project.
+
+1. Mock `IConfiguration` (from Microsoft.Extensions.Configuration) to return the expected value.
+
+    ```csharp
+    var expected = "val1";
+    var mockConfig = new Mock<IConfiguration>();
+    mockConfig.Setup(p => p[It.IsAny<string>()]).Returns(expected);
+    ```
+
+1. Mock `IConfigurationService` to return the mock `IConfiguration`.
+
+    ```csharp
+    var mockConfigService = new Mock<IConfigurationService>();
+    mockConfigService.Setup(p => p.GetConfiguration()).Returns(mockConfig.Object);
+    ```
+
+1. Invoke the lambda function and confirm config value is returned.
+
+    ```csharp
+    var function = new Function(mockConfigService.Object);
+    var result = function.FunctionHandler("env1", new TestLambdaContext());
+    Assert.Equal(expected, result);
+    ```
 
 ## Deployment
 
